@@ -19,20 +19,6 @@ AFRAME.registerComponent('gps-entity-place', {
         };
 
         window.addEventListener('debug-ui-added', this.debugUIAddedHandler.bind(this));
-
-        if (this._cameraGps === null) {
-            var camera = document.querySelector('a-camera, [camera]');
-            if (camera.components['gps-camera'] === undefined) {
-                return;
-            }
-            this._cameraGps = camera.components['gps-camera'];
-        }
-
-        if (this._cameraGps.originCoords === null) {
-            return;
-        }
-
-        this._updatePosition();
         return true;
     },
 
@@ -40,8 +26,19 @@ AFRAME.registerComponent('gps-entity-place', {
      * Update place position
      * @returns {void}
      */
-    _updatePosition: function () {
-        var position = { x: 0, y: 0, z: 0 }
+    tick: function () {
+        if (this._cameraGps === null) {
+			var camera = document.querySelector('[gps-camera]');
+			if (camera.components['gps-camera'] === undefined) {
+				return;
+			}
+			this._cameraGps = camera.components['gps-camera'];
+        }
+
+        if (!this._cameraGps) return;
+        if (!this._cameraGps.originCoords) return;
+
+        var position = {x: 0, y: 0, z: 0}
 
         // update position.x
         var dstCoords = {
@@ -64,6 +61,9 @@ AFRAME.registerComponent('gps-entity-place', {
 
         // update element's position in 3D world
         this.el.setAttribute('position', position);
+
+        const rotation = Math.atan2(position.x, position.z);
+        this.el.object3D.rotation.y = rotation + Math.PI;
     },
 
     /**

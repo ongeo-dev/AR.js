@@ -1,3 +1,7 @@
+# 2.0.6
+
+- Added synchronization between GPS Camera and markers
+
 # 2.0.5
 
 - Fixed a bug on location-based statically add of places via
