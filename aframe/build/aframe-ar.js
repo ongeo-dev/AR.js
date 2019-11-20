@@ -9061,7 +9061,7 @@ AFRAME.registerComponent('gps-entity-place', {
     tick: function () {
         if (this._cameraGps === null) {
 			var camera = document.querySelector('[gps-camera]');
-			if (camera.components['gps-camera'] === undefined) {
+			if (!camera || camera.components['gps-camera'] === undefined) {
 				return;
 			}
 			this._cameraGps = camera.components['gps-camera'];
