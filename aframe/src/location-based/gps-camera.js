@@ -291,10 +291,10 @@ AFRAME.registerComponent('gps-camera', {
      */
     _deflicker: function (newValue, oldValue) {
         if (!oldValue || !this.data.smoothCamera) return newValue;
-        const difference = newValue - oldValue;
+        var difference = newValue - oldValue;
         if (difference > 180) oldValue += 360;
         if (difference < -180) newValue += 360;
-        const bias = Math.atan(Math.abs((newValue - oldValue) / this.data.smoothCamera)) / (Math.PI / 2);
+        var bias = Math.atan(Math.abs((newValue - oldValue) / this.data.smoothCamera)) / (Math.PI / 2);
         return (newValue * bias + oldValue * (1 - bias)) % 360;
     },
 
@@ -306,11 +306,11 @@ AFRAME.registerComponent('gps-camera', {
     _updateRotation: function () {
         if (!this.data.smoothCamera) return; // rely on rotations from look-controls
 
-        const pitchRotation = THREE.Math.radToDeg(this.el.object3D.rotation.x);
+        var pitchRotation = THREE.Math.radToDeg(this.el.object3D.rotation.x);
         this.pitch = this._deflicker(pitchRotation, this.pitch);
         this.el.object3D.rotation.x = THREE.Math.degToRad(this.pitch);
 
-        const heading = 360 - this.heading;
+        var heading = 360 - this.heading;
         this.el.object3D.rotation.y = THREE.Math.degToRad(heading);
     },
 });
