@@ -287,10 +287,10 @@ AFRAME.registerComponent('gps-camera', {
     /**
      * Smoothes the value change based on the difference.
      *
-     * @returns {void}
+     * @returns {number}
      */
     _deflicker: function (newValue, oldValue) {
-        if (!oldValue || !this.data.smoothCamera) return newValue;
+        if (oldValue === undefined || !this.data.smoothCamera) return newValue;
         var difference = newValue - oldValue;
         if (difference > 180) oldValue += 360;
         if (difference < -180) newValue += 360;
