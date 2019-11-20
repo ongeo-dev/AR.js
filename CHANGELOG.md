@@ -1,6 +1,8 @@
-# 2.0.6
+# pending ...
 
 - Added synchronization between GPS Camera and markers
+- Rotate entity places towards camera
+- Smooting of the camera rotation to avoid jittering because of noisy sensor data
 
 # 2.0.5
 

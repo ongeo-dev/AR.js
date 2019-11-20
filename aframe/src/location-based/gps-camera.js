@@ -4,6 +4,7 @@ AFRAME.registerComponent('gps-camera', {
     currentCoords: null,
     lookControls: null,
     heading: null,
+    pitch: null,
 
     schema: {
         positionMinAccuracy: {
@@ -16,6 +17,10 @@ AFRAME.registerComponent('gps-camera', {
         },
         minDistance: {
             type: 'int',
+            default: 0,
+        },
+        smoothCamera: {
+            type: 'number',
             default: 0,
         }
     },
@@ -163,19 +168,19 @@ AFRAME.registerComponent('gps-camera', {
         var position = this.el.getAttribute('position');
 
         // compute position.x
-        var dstCoords = {
+        var dstCoordsX = {
             longitude: this.currentCoords.longitude,
             latitude: this.originCoords.latitude,
         };
-        position.x = this.computeDistanceMeters(this.originCoords, dstCoords);
+        position.x = this.computeDistanceMeters(this.originCoords, dstCoordsX);
         position.x *= this.currentCoords.longitude > this.originCoords.longitude ? 1 : -1;
 
         // compute position.z
-        var dstCoords = {
+        var dstCoordsZ = {
             longitude: this.originCoords.longitude,
             latitude: this.currentCoords.latitude,
-        }
-        position.z = this.computeDistanceMeters(this.originCoords, dstCoords);
+        };
+        position.z = this.computeDistanceMeters(this.originCoords, dstCoordsZ);
         position.z *= this.currentCoords.latitude > this.originCoords.latitude ? -1 : 1;
 
         // update position
@@ -269,7 +274,8 @@ AFRAME.registerComponent('gps-camera', {
             }
         } else if (event.alpha !== null) {
             if (event.absolute === true || event.absolute === undefined) {
-                this.heading = this._computeCompassHeading(event.alpha, event.beta, event.gamma);
+                var newHeading = this._computeCompassHeading(event.alpha, event.beta, event.gamma);
+                this.heading = this._deflicker(newHeading, this.heading);
             } else {
                 console.warn('event.absolute === false');
             }
@@ -279,15 +285,32 @@ AFRAME.registerComponent('gps-camera', {
     },
 
     /**
+     * Smoothes the value change based on the difference.
+     *
+     * @returns {void}
+     */
+    _deflicker: function (newValue, oldValue) {
+        if (!oldValue || !this.data.smoothCamera) return newValue;
+        const difference = newValue - oldValue;
+        if (difference > 180) oldValue += 360;
+        if (difference < -180) newValue += 360;
+        const bias = Math.atan(Math.abs((newValue - oldValue) / this.data.smoothCamera)) / (Math.PI / 2);
+        return (newValue * bias + oldValue * (1 - bias)) % 360;
+    },
+
+    /**
      * Update user rotation data.
      *
      * @returns {void}
      */
     _updateRotation: function () {
-        var heading = 360 - this.heading;
-        var cameraRotation = this.el.getAttribute('rotation').y;
-        var yawRotation = THREE.Math.radToDeg(this.lookControls.yawObject.rotation.y);
-        var offset = (heading - (cameraRotation - yawRotation)) % 360;
-        this.lookControls.yawObject.rotation.y = THREE.Math.degToRad(offset);
+        if (!this.data.smoothCamera) return; // rely on rotations from look-controls
+
+        const pitchRotation = THREE.Math.radToDeg(this.el.object3D.rotation.x);
+        this.pitch = this._deflicker(pitchRotation, this.pitch);
+        this.el.object3D.rotation.x = THREE.Math.degToRad(this.pitch);
+
+        const heading = 360 - this.heading;
+        this.el.object3D.rotation.y = THREE.Math.degToRad(heading);
     },
 });
