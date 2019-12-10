@@ -9,6 +9,10 @@ AFRAME.registerComponent('gps-entity-place', {
             type: 'number',
             default: 0,
         },
+        offsetY: {
+            type: 'number',
+            default: 0,
+        }
     },
     init: function () {
         this._positionXDebug = 0;
@@ -28,42 +32,62 @@ AFRAME.registerComponent('gps-entity-place', {
      */
     tick: function () {
         if (this._cameraGps === null) {
-			var camera = document.querySelector('[gps-camera]');
-			if (camera.components['gps-camera'] === undefined) {
-				return;
-			}
-			this._cameraGps = camera.components['gps-camera'];
+            var camera = document.querySelector('[gps-camera]');
+            if (!camera || camera.components['gps-camera'] === undefined) {
+                return;
+            }
+            this._cameraGps = camera.components['gps-camera'];
+        }
+
+        if (!this._scaleFound) {
+            this._scale = 1;
+            var scale = document.querySelector('[scale]');
+            if (scale && scale.components['scale'] !== undefined && scale.components['scale'] !== null) {
+                this._scale = scale.components['scale'].attrValue.y;
+                this._scaleFound = true;
+            }
         }
 
         if (!this._cameraGps) return;
         if (!this._cameraGps.originCoords) return;
 
-        var position = {x: 0, y: 0, z: 0}
+        this._gpsCoords = !this._cameraGps.currentCoords ? this._cameraGps.originCoords : this._cameraGps.currentCoords;
 
-        // update position.x
-        var dstCoords = {
-            longitude: this.data.longitude,
-            latitude: this._cameraGps.originCoords.latitude,
-        };
+        if (this._gpsCoords.longitude !== this._cameraCurrentLong || this._gpsCoords.latitude !== this._cameraCurrentLat) {
+            this._cameraCurrentLong = this._gpsCoords.longitude;
+            this._cameraCurrentLat = this._gpsCoords.latitude;
 
-        position.x = this._cameraGps.computeDistanceMeters(this._cameraGps.originCoords, dstCoords, true);
-        this._positionXDebug = position.x;
-        position.x *= this.data.longitude > this._cameraGps.originCoords.longitude ? 1 : -1;
+            var position = {x: 0, y: 0, z: 0};
 
-        // update position.z
-        var dstCoords = {
-            longitude: this._cameraGps.originCoords.longitude,
-            latitude: this.data.latitude,
-        };
+            // update position.x
+            var dstCoords = {
+                longitude: this.data.longitude,
+                latitude: this._gpsCoords.latitude,
+            };
 
-        position.z = this._cameraGps.computeDistanceMeters(this._cameraGps.originCoords, dstCoords, true);
-		position.z *= this.data.latitude > this._cameraGps.originCoords.latitude ? -1 : 1;
+            position.x = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
+            this._positionXDebug = position.x;
+            position.x *= this.data.longitude > this._gpsCoords.longitude ? 1 : -1;
 
-        // update element's position in 3D world
-        this.el.setAttribute('position', position);
+            // update position.z
+            dstCoords = {
+                longitude: this._gpsCoords.longitude,
+                latitude: this.data.latitude,
+            };
 
-        var rotation = Math.atan2(position.x, position.z);
-        this.el.object3D.rotation.y = rotation + Math.PI;
+            position.z = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
+            position.z *= this.data.latitude > this._gpsCoords.latitude ? -1 : 1;
+
+            if(this.data.offsetY && this.data.offsetY > 0) {
+                position.y = this.data.offsetY * this._scale;
+            }
+
+            // update element's position in 3D world
+            this.el.setAttribute('position', position);
+
+            var rotation = Math.atan2(position.x, position.z);
+            this.el.object3D.rotation.y = rotation + Math.PI;
+        }
     },
 
     /**
@@ -78,7 +102,7 @@ AFRAME.registerComponent('gps-entity-place', {
                 el.innerHTML = el.getAttribute('value') + ': ' + distance + 'far';
             }
         });
-    },
+    }
 });
 
 /**
