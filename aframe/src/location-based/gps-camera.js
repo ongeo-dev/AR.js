@@ -43,10 +43,10 @@ AFRAME.registerComponent('gps-camera', {
 
                 document.addEventListener('touchend', function() { handler() }, false);
 
-                alert('After camera permission prompt, please tap the screen to active geolocation.');
+                if (this.data.alert) alert('After camera permission prompt, please tap the screen to active geolocation.');
             } else {
                 var timeout = setTimeout(function () {
-                    alert('Please enable device orientation in Settings > Safari > Motion & Orientation Access.')
+                    if (this.data.alert) alert('Please enable device orientation in Settings > Safari > Motion & Orientation Access.')
                 }, 750);
                 window.addEventListener(eventName, function () {
                     clearTimeout(timeout);
@@ -110,12 +110,12 @@ AFRAME.registerComponent('gps-camera', {
 
                 if (err.code === 1) {
                     // User denied GeoLocation, let their know that
-                    alert('Please activate Geolocation and refresh the page. If it is already active, please check permissions for this website.');
+                    if (this.data.alert) alert('Please activate Geolocation and refresh the page. If it is already active, please check permissions for this website.');
                     return;
                 }
 
                 if (err.code === 3) {
-                    alert('Cannot retrieve GPS position. Signal is absent.');
+                    if (this.data.alert) alert('Cannot retrieve GPS position. Signal is absent.');
                     return;
                 }
             };
@@ -289,5 +289,5 @@ AFRAME.registerComponent('gps-camera', {
         var yawRotation = THREE.Math.radToDeg(this.lookControls.yawObject.rotation.y);
         var offset = (heading - (cameraRotation - yawRotation)) % 360;
         this.lookControls.yawObject.rotation.y = THREE.Math.degToRad(offset);
-    },
+    }
 });
