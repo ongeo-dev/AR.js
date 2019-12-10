@@ -183,17 +183,7 @@ ARjs.Source.prototype._initSourceWebcam = function(onReady, onError) {
                 var userMediaConstraints = {
 			audio: false,
 			video: {
-				facingMode: {exact: 'environment'},
-				width: {
-					ideal: _this.parameters.sourceWidth,
-					// min: 1024,
-					// max: 1920
-				},
-				height: {
-					ideal: _this.parameters.sourceHeight,
-					// min: 776,
-					// max: 1080
-				}
+				facingMode: {exact: 'environment'}
 		  	}
 		};
 
@@ -215,8 +205,7 @@ ARjs.Source.prototype._initSourceWebcam = function(onReady, onError) {
 				domElement.play();
 			});
 			// domElement.play();
-
-			onReady();
+      setTimeout(function() {onReady();}, 500);
 		}).catch(function(error) {
 			onError({
 				name: error.name,
