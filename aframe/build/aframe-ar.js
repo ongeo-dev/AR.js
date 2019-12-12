@@ -5933,21 +5933,15 @@ ARjs.Source.prototype.init = function(onReady, onError){
 
 ARjs.Source.prototype._initSourceImage = function(onReady) {
 	// TODO make it static
-        var domElement = document.createElement('img')
-	domElement.src = this.parameters.sourceUrl
+        var domElement = document.createElement('img');
+	domElement.src = this.parameters.sourceUrl;
 
-	domElement.width = this.parameters.sourceWidth
-	domElement.height = this.parameters.sourceHeight
-	domElement.style.width = this.parameters.displayWidth+'px'
-	domElement.style.height = this.parameters.displayHeight+'px'
+	domElement.width = this.parameters.sourceWidth;
+	domElement.height = this.parameters.sourceHeight;
+	domElement.style.width = this.parameters.displayWidth+'px';
+	domElement.style.height = this.parameters.displayHeight+'px';
 
-	// wait until the video stream is ready
-	var interval = setInterval(function() {
-		if (!domElement.naturalWidth)	return;
-		onReady()
-		clearInterval(interval)
-	}, 1000/50);
-
+	onReady();
 	return domElement
 }
 
@@ -5959,33 +5953,28 @@ ARjs.Source.prototype._initSourceImage = function(onReady) {
 ARjs.Source.prototype._initSourceVideo = function(onReady) {
 	// TODO make it static
 	var domElement = document.createElement('video');
-	domElement.src = this.parameters.sourceUrl
+	domElement.src = this.parameters.sourceUrl;
 
-	domElement.style.objectFit = 'initial'
+	domElement.style.objectFit = 'initial';
 
 	domElement.autoplay = true;
 	domElement.webkitPlaysinline = true;
 	domElement.controls = false;
 	domElement.loop = true;
-	domElement.muted = true
+	domElement.muted = true;
 
 	// trick to trigger the video on android
 	document.body.addEventListener('click', function onClick(){
 		document.body.removeEventListener('click', onClick);
 		domElement.play()
-	})
+	});
 
-	domElement.width = this.parameters.sourceWidth
-	domElement.height = this.parameters.sourceHeight
-	domElement.style.width = this.parameters.displayWidth+'px'
-	domElement.style.height = this.parameters.displayHeight+'px'
+	domElement.width = this.parameters.sourceWidth;
+	domElement.height = this.parameters.sourceHeight;
+	domElement.style.width = this.parameters.displayWidth+'px';
+	domElement.style.height = this.parameters.displayHeight+'px';
 
-	// wait until the video stream is ready
-	var interval = setInterval(function() {
-		if (!domElement.videoWidth)	return;
-		onReady()
-		clearInterval(interval)
-	}, 1000/50);
+	onReady();
 	return domElement
 }
 
@@ -6021,7 +6010,7 @@ ARjs.Source.prototype._initSourceWebcam = function(onReady, onError) {
 		onError({
 			name: '',
 			message: 'WebRTC issue-! '+fctName+' not present in your browser'
-		})
+		});
 		return null
 	}
 
@@ -6030,19 +6019,9 @@ ARjs.Source.prototype._initSourceWebcam = function(onReady, onError) {
                 var userMediaConstraints = {
 			audio: false,
 			video: {
-				facingMode: 'environment',
-				width: {
-					ideal: _this.parameters.sourceWidth,
-					// min: 1024,
-					// max: 1920
-				},
-				height: {
-					ideal: _this.parameters.sourceHeight,
-					// min: 776,
-					// max: 1080
-				}
+				facingMode: {exact: 'environment'}
 		  	}
-		}
+		};
 
 		if (null !== _this.parameters.deviceId) {
 			userMediaConstraints.video.deviceId = {
@@ -6062,14 +6041,7 @@ ARjs.Source.prototype._initSourceWebcam = function(onReady, onError) {
 				domElement.play();
 			});
 			// domElement.play();
-
-// TODO listen to loadedmetadata instead
-			// wait until the video stream is ready
-			var interval = setInterval(function() {
-				if (!domElement.videoWidth)	return;
-				onReady()
-				clearInterval(interval)
-			}, 1000/50);
+      setTimeout(function() {onReady();}, 500);
 		}).catch(function(error) {
 			onError({
 				name: error.name,
@@ -8718,9 +8690,12 @@ AFRAME.registerComponent('gps-camera', {
     _watchPositionId: null,
     originCoords: null,
     currentCoords: null,
+    newCoords: null,
     lookControls: null,
-    heading: null,
-    pitch: null,
+    heading: 0,
+    newHeading: 0,
+    pitch: 0,
+    position: {x: 0, z: 0},
 
     schema: {
         positionMinAccuracy: {
@@ -8738,6 +8713,14 @@ AFRAME.registerComponent('gps-camera', {
         smoothCamera: {
             type: 'number',
             default: 0,
+        },
+        latitude: {
+          type: 'number',
+          default: 0,
+        },
+        longitude: {
+          type: 'number',
+          default: 0,
         }
     },
 
@@ -8764,10 +8747,10 @@ AFRAME.registerComponent('gps-camera', {
 
                 document.addEventListener('touchend', function() { handler() }, false);
 
-                alert('After camera permission prompt, please tap the screen to active geolocation.');
+                if (this.data.alert) alert('After camera permission prompt, please tap the screen to active geolocation.');
             } else {
                 var timeout = setTimeout(function () {
-                    alert('Please enable device orientation in Settings > Safari > Motion & Orientation Access.')
+                    if (this.data.alert) alert('Please enable device orientation in Settings > Safari > Motion & Orientation Access.')
                 }, 750);
                 window.addEventListener(eventName, function () {
                     clearTimeout(timeout);
@@ -8777,17 +8760,24 @@ AFRAME.registerComponent('gps-camera', {
 
         window.addEventListener(eventName, this._onDeviceOrientation, false);
 
-        this._watchPositionId = this._initWatchGPS(function (position) {
-            this.currentCoords = position.coords;
-            this._updatePosition();
-        }.bind(this));
+        if (this.data.latitude && this.data.longitude) {
+          var self = this;
+            setInterval(function(){
+              if (self.data.latitude === -1 || self.data.longitude === -1) return;
+              self.newCoords = {latitude: self.data.latitude, longitude: self.data.longitude, accuracy: 0};
+              if (!self.currentCoords) self.currentCoords = self.newCoords;
+            }, 1000)
+        } else {
+            this._watchPositionId = this._initWatchGPS(function (position) {
+                this.newCoords = position.coords;
+                if (!self.currentCoords) self.currentCoords = self.newCoords;
+            }.bind(this));
+        }
     },
 
     tick: function () {
-        if (this.heading === null) {
-            return;
-        }
         this._updateRotation();
+        this._updatePosition();
     },
 
     remove: function () {
@@ -8831,12 +8821,12 @@ AFRAME.registerComponent('gps-camera', {
 
                 if (err.code === 1) {
                     // User denied GeoLocation, let their know that
-                    alert('Please activate Geolocation and refresh the page. If it is already active, please check permissions for this website.');
+                    if (this.data.alert) alert('Please activate Geolocation and refresh the page. If it is already active, please check permissions for this website.');
                     return;
                 }
 
                 if (err.code === 3) {
-                    alert('Cannot retrieve GPS position. Signal is absent.');
+                    if (this.data.alert) alert('Cannot retrieve GPS position. Signal is absent.');
                     return;
                 }
             };
@@ -8861,6 +8851,16 @@ AFRAME.registerComponent('gps-camera', {
      * @returns {void}
      */
     _updatePosition: function () {
+        if (!this.newCoords) return;
+
+        var lat = this.currentCoords.latitude;
+        var lng = this.currentCoords.longitude;
+
+        this.currentCoords = this.newCoords;
+
+        this.currentCoords.latitude = this._deflickerLinear(this.newCoords.latitude, lat, 0.01);
+        this.currentCoords.longitude = this._deflickerLinear(this.newCoords.longitude, lng, 0.01);
+
         // don't update if accuracy is not good enough
         if (this.currentCoords.accuracy > this.data.positionMinAccuracy) {
             if (this.data.alert && !document.getElementById('alert-popup')) {
@@ -8881,25 +8881,25 @@ AFRAME.registerComponent('gps-camera', {
             this.originCoords = this.currentCoords;
         }
 
-        var position = this.el.getAttribute('position');
-
         // compute position.x
         var dstCoordsX = {
             longitude: this.currentCoords.longitude,
             latitude: this.originCoords.latitude,
         };
-        position.x = this.computeDistanceMeters(this.originCoords, dstCoordsX);
-        position.x *= this.currentCoords.longitude > this.originCoords.longitude ? 1 : -1;
+        this.position.x = this.computeDistanceMeters(this.originCoords, dstCoordsX);
+        this.position.x *= this.currentCoords.longitude > this.originCoords.longitude ? 1 : -1;
 
         // compute position.z
         var dstCoordsZ = {
             longitude: this.originCoords.longitude,
             latitude: this.currentCoords.latitude,
         };
-        position.z = this.computeDistanceMeters(this.originCoords, dstCoordsZ);
-        position.z *= this.currentCoords.latitude > this.originCoords.latitude ? -1 : 1;
+        this.position.z = this.computeDistanceMeters(this.originCoords, dstCoordsZ);
+        this.position.z *= this.currentCoords.latitude > this.originCoords.latitude ? -1 : 1;
 
-        // update position
+        var position = this.el.getAttribute('position');
+        position.x = this._deflickerLinear(this.position.x, position.x, 0.1);
+        position.z = this._deflickerLinear(this.position.z, position.z, 0.1);
         this.el.setAttribute('position', position);
     },
 
@@ -8984,19 +8984,18 @@ AFRAME.registerComponent('gps-camera', {
     _onDeviceOrientation: function (event) {
         if (event.webkitCompassHeading !== undefined) {
             if (event.webkitCompassAccuracy < 50) {
-                this.heading = event.webkitCompassHeading;
+                this.newHeading = event.webkitCompassHeading;
             } else {
-                console.warn('webkitCompassAccuracy is event.webkitCompassAccuracy');
+                if (this.data.alert) console.warn('webkitCompassAccuracy is event.webkitCompassAccuracy');
             }
         } else if (event.alpha !== null) {
             if (event.absolute === true || event.absolute === undefined) {
-                var newHeading = this._computeCompassHeading(event.alpha, event.beta, event.gamma);
-                this.heading = this._deflicker(newHeading, this.heading);
+                this.newHeading = this._computeCompassHeading(event.alpha, event.beta, event.gamma);
             } else {
-                console.warn('event.absolute === false');
+              if (this.data.alert) console.warn('event.absolute === false');
             }
         } else {
-            console.warn('event.alpha === null');
+          if (this.data.alert) console.warn('event.alpha === null');
         }
     },
 
@@ -9013,6 +9012,10 @@ AFRAME.registerComponent('gps-camera', {
         var bias = Math.atan(Math.abs((newValue - oldValue) / this.data.smoothCamera)) / (Math.PI / 2);
         return (newValue * bias + oldValue * (1 - bias)) % 360;
     },
+    _deflickerLinear: function (newValue, oldValue, bias) {
+        if (oldValue === undefined || !this.data.smoothCamera) return newValue;
+        return (newValue * bias + oldValue * (1 - bias));
+    },
 
     /**
      * Update user rotation data.
@@ -9021,6 +9024,7 @@ AFRAME.registerComponent('gps-camera', {
      */
     _updateRotation: function () {
         if (!this.data.smoothCamera) return; // rely on rotations from look-controls
+        this.heading = this._deflicker(this.newHeading, this.heading);
 
         var pitchRotation = THREE.Math.radToDeg(this.el.object3D.rotation.x);
         this.pitch = this._deflicker(pitchRotation, this.pitch);
@@ -9028,7 +9032,7 @@ AFRAME.registerComponent('gps-camera', {
 
         var heading = 360 - this.heading;
         this.el.object3D.rotation.y = THREE.Math.degToRad(heading);
-    },
+    }
 });
 AFRAME.registerComponent('gps-entity-place', {
     _cameraGps: null,
@@ -9048,6 +9052,7 @@ AFRAME.registerComponent('gps-entity-place', {
     },
     init: function () {
         this._positionXDebug = 0;
+        this.el.setAttribute('position', {x:0, y:0, z:0});
 
         this.debugUIAddedHandler = function () {
             this.setDebugData(this.el);
@@ -9083,13 +9088,11 @@ AFRAME.registerComponent('gps-entity-place', {
         if (!this._cameraGps) return;
         if (!this._cameraGps.originCoords) return;
 
-        this._gpsCoords = !this._cameraGps.currentCoords ? this._cameraGps.originCoords : this._cameraGps.currentCoords;
+        this._gpsCoords =  this._cameraGps.currentCoords;
 
         if (this._gpsCoords.longitude !== this._cameraCurrentLong || this._gpsCoords.latitude !== this._cameraCurrentLat) {
             this._cameraCurrentLong = this._gpsCoords.longitude;
             this._cameraCurrentLat = this._gpsCoords.latitude;
-
-            var position = {x: 0, y: 0, z: 0};
 
             // update position.x
             var dstCoords = {
@@ -9097,9 +9100,9 @@ AFRAME.registerComponent('gps-entity-place', {
                 latitude: this._gpsCoords.latitude,
             };
 
-            position.x = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
-            this._positionXDebug = position.x;
-            position.x *= this.data.longitude > this._gpsCoords.longitude ? 1 : -1;
+            var x = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
+            this._positionXDebug = x;
+            x *= this.data.longitude > this._gpsCoords.longitude ? 1 : -1;
 
             // update position.z
             dstCoords = {
@@ -9107,19 +9110,27 @@ AFRAME.registerComponent('gps-entity-place', {
                 latitude: this.data.latitude,
             };
 
-            position.z = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
-            position.z *= this.data.latitude > this._gpsCoords.latitude ? -1 : 1;
+            var z = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
+            z *= this.data.latitude > this._gpsCoords.latitude ? -1 : 1;
+
+            var position = this.el.getAttribute('position');
 
             if(this.data.offsetY && this.data.offsetY > 0) {
                 position.y = this.data.offsetY * this._scale;
             }
 
             // update element's position in 3D world
+            position.x = this._deflickerLinear(x, position.x, 0.1);
+            position.z = this._deflickerLinear(z, position.z, 0.1);
             this.el.setAttribute('position', position);
 
             var rotation = Math.atan2(position.x, position.z);
             this.el.object3D.rotation.y = rotation + Math.PI;
         }
+    },
+    _deflickerLinear: function (newValue, oldValue, bias) {
+      if (oldValue === undefined || !this.data.smoothCamera) return newValue;
+      return (newValue * bias + oldValue * (1 - bias));
     },
 
     /**
