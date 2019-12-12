@@ -84,8 +84,8 @@ AFRAME.registerComponent('gps-entity-place', {
             }
 
             // update element's position in 3D world
-            position.x = this._deflickerLinear(x, position.x, 0.001);
-            position.z = this._deflickerLinear(z, position.z, 0.001);
+            position.x = this._deflickerLinear(x, position.x, 0.1);
+            position.z = this._deflickerLinear(z, position.z, 0.1);
             this.el.setAttribute('position', position);
 
             var rotation = Math.atan2(position.x, position.z);

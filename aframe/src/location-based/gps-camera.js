@@ -2,6 +2,7 @@ AFRAME.registerComponent('gps-camera', {
     _watchPositionId: null,
     originCoords: null,
     currentCoords: null,
+    newCoords: null,
     lookControls: null,
     heading: 0,
     newHeading: 0,
@@ -75,20 +76,20 @@ AFRAME.registerComponent('gps-camera', {
           var self = this;
             setInterval(function(){
               if (self.data.latitude === -1 || self.data.longitude === -1) return;
-              self.currentCoords = {latitude: self.data.latitude, longitude: self.data.longitude, accuracy: 0};
-              self._updatePosition();
+              self.newCoords = {latitude: self.data.latitude, longitude: self.data.longitude, accuracy: 0};
+              if (!self.currentCoords) self.currentCoords = self.newCoords;
             }, 1000)
         } else {
             this._watchPositionId = this._initWatchGPS(function (position) {
-                this.currentCoords = position.coords;
-                this._updatePosition();
+                this.newCoords = position.coords;
+                if (!self.currentCoords) self.currentCoords = self.newCoords;
             }.bind(this));
         }
     },
 
     tick: function () {
         this._updateRotation();
-        this._updatePositionOnTick();
+        this._updatePosition();
     },
 
     remove: function () {
@@ -162,6 +163,16 @@ AFRAME.registerComponent('gps-camera', {
      * @returns {void}
      */
     _updatePosition: function () {
+        if (!this.newCoords) return;
+
+        var lat = this.currentCoords.latitude;
+        var lng = this.currentCoords.longitude;
+
+        this.currentCoords = this.newCoords;
+
+        this.currentCoords.latitude = this._deflickerLinear(this.newCoords.latitude, lat, 0.01);
+        this.currentCoords.longitude = this._deflickerLinear(this.newCoords.longitude, lng, 0.01);
+
         // don't update if accuracy is not good enough
         if (this.currentCoords.accuracy > this.data.positionMinAccuracy) {
             if (this.data.alert && !document.getElementById('alert-popup')) {
@@ -198,13 +209,10 @@ AFRAME.registerComponent('gps-camera', {
         this.position.z = this.computeDistanceMeters(this.originCoords, dstCoordsZ);
         this.position.z *= this.currentCoords.latitude > this.originCoords.latitude ? -1 : 1;
 
-    },
-
-    _updatePositionOnTick: function() {
-      var position = this.el.getAttribute('position');
-      position.x = this._deflickerLinear(this.position.x, position.x, 0.01);
-      position.z = this._deflickerLinear(this.position.z, position.z, 0.01);
-      this.el.setAttribute('position', position);
+        var position = this.el.getAttribute('position');
+        position.x = this._deflickerLinear(this.position.x, position.x, 0.1);
+        position.z = this._deflickerLinear(this.position.z, position.z, 0.1);
+        this.el.setAttribute('position', position);
     },
 
     /**
