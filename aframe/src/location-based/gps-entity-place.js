@@ -16,6 +16,7 @@ AFRAME.registerComponent('gps-entity-place', {
     },
     init: function () {
         this._positionXDebug = 0;
+        this.el.setAttribute('position', {x:0, y:0, z:0});
 
         this.debugUIAddedHandler = function () {
             this.setDebugData(this.el);
@@ -51,13 +52,11 @@ AFRAME.registerComponent('gps-entity-place', {
         if (!this._cameraGps) return;
         if (!this._cameraGps.originCoords) return;
 
-        this._gpsCoords = !this._cameraGps.currentCoords ? this._cameraGps.originCoords : this._cameraGps.currentCoords;
+        this._gpsCoords =  this._cameraGps.currentCoords;
 
         if (this._gpsCoords.longitude !== this._cameraCurrentLong || this._gpsCoords.latitude !== this._cameraCurrentLat) {
             this._cameraCurrentLong = this._gpsCoords.longitude;
             this._cameraCurrentLat = this._gpsCoords.latitude;
-
-            var position = {x: 0, y: 0, z: 0};
 
             // update position.x
             var dstCoords = {
@@ -65,9 +64,9 @@ AFRAME.registerComponent('gps-entity-place', {
                 latitude: this._gpsCoords.latitude,
             };
 
-            position.x = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
-            this._positionXDebug = position.x;
-            position.x *= this.data.longitude > this._gpsCoords.longitude ? 1 : -1;
+            var x = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
+            this._positionXDebug = x;
+            x *= this.data.longitude > this._gpsCoords.longitude ? 1 : -1;
 
             // update position.z
             dstCoords = {
@@ -75,19 +74,27 @@ AFRAME.registerComponent('gps-entity-place', {
                 latitude: this.data.latitude,
             };
 
-            position.z = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
-            position.z *= this.data.latitude > this._gpsCoords.latitude ? -1 : 1;
+            var z = this._cameraGps.computeDistanceMeters(this._gpsCoords, dstCoords, true);
+            z *= this.data.latitude > this._gpsCoords.latitude ? -1 : 1;
+
+            var position = this.el.getAttribute('position');
 
             if(this.data.offsetY && this.data.offsetY > 0) {
                 position.y = this.data.offsetY * this._scale;
             }
 
             // update element's position in 3D world
+            position.x = this._deflickerLinear(x, position.x, 0.001);
+            position.z = this._deflickerLinear(z, position.z, 0.001);
             this.el.setAttribute('position', position);
 
             var rotation = Math.atan2(position.x, position.z);
             this.el.object3D.rotation.y = rotation + Math.PI;
         }
+    },
+    _deflickerLinear: function (newValue, oldValue, bias) {
+      if (oldValue === undefined || !this.data.smoothCamera) return newValue;
+      return (newValue * bias + oldValue * (1 - bias));
     },
 
     /**
