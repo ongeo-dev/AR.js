@@ -165,13 +165,7 @@ AFRAME.registerComponent('gps-camera', {
     _updatePosition: function () {
         if (!this.newCoords) return;
 
-        var lat = this.currentCoords.latitude;
-        var lng = this.currentCoords.longitude;
-
         this.currentCoords = this.newCoords;
-
-        this.currentCoords.latitude = this._deflickerLinear(this.newCoords.latitude, lat, 0.01);
-        this.currentCoords.longitude = this._deflickerLinear(this.newCoords.longitude, lng, 0.01);
 
         // don't update if accuracy is not good enough
         if (this.currentCoords.accuracy > this.data.positionMinAccuracy) {
@@ -193,25 +187,9 @@ AFRAME.registerComponent('gps-camera', {
             this.originCoords = this.currentCoords;
         }
 
-        // compute position.x
-        var dstCoordsX = {
-            longitude: this.currentCoords.longitude,
-            latitude: this.originCoords.latitude,
-        };
-        this.position.x = this.computeDistanceMeters(this.originCoords, dstCoordsX);
-        this.position.x *= this.currentCoords.longitude > this.originCoords.longitude ? 1 : -1;
-
-        // compute position.z
-        var dstCoordsZ = {
-            longitude: this.originCoords.longitude,
-            latitude: this.currentCoords.latitude,
-        };
-        this.position.z = this.computeDistanceMeters(this.originCoords, dstCoordsZ);
-        this.position.z *= this.currentCoords.latitude > this.originCoords.latitude ? -1 : 1;
-
         var position = this.el.getAttribute('position');
-        position.x = this._deflickerLinear(this.position.x, position.x, 0.1);
-        position.z = this._deflickerLinear(this.position.z, position.z, 0.1);
+        position.x = 0;
+        position.z = 0;
         this.el.setAttribute('position', position);
     },
 
@@ -323,10 +301,6 @@ AFRAME.registerComponent('gps-camera', {
         if (difference < -180) newValue += 360;
         var bias = Math.atan(Math.abs((newValue - oldValue) / this.data.smoothCamera)) / (Math.PI / 2);
         return (newValue * bias + oldValue * (1 - bias)) % 360;
-    },
-    _deflickerLinear: function (newValue, oldValue, bias) {
-        if (oldValue === undefined || !this.data.smoothCamera) return newValue;
-        return (newValue * bias + oldValue * (1 - bias));
     },
 
     /**

@@ -1,5 +1,13 @@
 AFRAME.registerComponent('gps-entity-place', {
     _cameraGps: null,
+    _scaleFound: false,
+    _scale: null,
+    _markerDistFromGroundFound: false,
+    _markerDistFromGround: null,
+    _gpsCoords: null,
+    _cameraCurrentLong: null,
+    _cameraCurrentLat: null,
+    _positionXDebug: null,
     schema: {
         latitude: {
             type: 'number',
@@ -49,6 +57,15 @@ AFRAME.registerComponent('gps-entity-place', {
             }
         }
 
+        if (!this._markerDistFromGroundFound) {
+            this._markerDistFromGround = 0;
+            var dist = document.querySelector('[distFromGround]');
+            if (dist && dist.getAttribute('distFromGround') !== undefined && dist.getAttribute('distFromGround') !== null) {
+                this._markerDistFromGround = parseFloat(dist.getAttribute('distFromGround'));
+                this._markerDistFromGroundFound = true;
+            }
+        }
+
         if (!this._cameraGps) return;
         if (!this._cameraGps.originCoords) return;
 
@@ -79,9 +96,11 @@ AFRAME.registerComponent('gps-entity-place', {
 
             var position = this.el.getAttribute('position');
 
+            var y = this._markerDistFromGround;
             if(this.data.offsetY && this.data.offsetY > 0) {
-                position.y = this.data.offsetY * this._scale;
+                y += this.data.offsetY * this._scale;
             }
+            position.y = y;
 
             // update element's position in 3D world
             position.x = this._deflickerLinear(x, position.x, 0.1);
@@ -92,6 +111,7 @@ AFRAME.registerComponent('gps-entity-place', {
             this.el.object3D.rotation.y = rotation + Math.PI;
         }
     },
+
     _deflickerLinear: function (newValue, oldValue, bias) {
       if (oldValue === undefined || !this.data.smoothCamera) return newValue;
       return (newValue * bias + oldValue * (1 - bias));
