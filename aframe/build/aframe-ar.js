@@ -8853,13 +8853,7 @@ AFRAME.registerComponent('gps-camera', {
     _updatePosition: function () {
         if (!this.newCoords) return;
 
-        var lat = this.currentCoords.latitude;
-        var lng = this.currentCoords.longitude;
-
         this.currentCoords = this.newCoords;
-
-        this.currentCoords.latitude = this._deflickerLinear(this.newCoords.latitude, lat, 0.01);
-        this.currentCoords.longitude = this._deflickerLinear(this.newCoords.longitude, lng, 0.01);
 
         // don't update if accuracy is not good enough
         if (this.currentCoords.accuracy > this.data.positionMinAccuracy) {
@@ -8881,25 +8875,9 @@ AFRAME.registerComponent('gps-camera', {
             this.originCoords = this.currentCoords;
         }
 
-        // compute position.x
-        var dstCoordsX = {
-            longitude: this.currentCoords.longitude,
-            latitude: this.originCoords.latitude,
-        };
-        this.position.x = this.computeDistanceMeters(this.originCoords, dstCoordsX);
-        this.position.x *= this.currentCoords.longitude > this.originCoords.longitude ? 1 : -1;
-
-        // compute position.z
-        var dstCoordsZ = {
-            longitude: this.originCoords.longitude,
-            latitude: this.currentCoords.latitude,
-        };
-        this.position.z = this.computeDistanceMeters(this.originCoords, dstCoordsZ);
-        this.position.z *= this.currentCoords.latitude > this.originCoords.latitude ? -1 : 1;
-
         var position = this.el.getAttribute('position');
-        position.x = this._deflickerLinear(this.position.x, position.x, 0.1);
-        position.z = this._deflickerLinear(this.position.z, position.z, 0.1);
+        position.x = 0;
+        position.z = 0;
         this.el.setAttribute('position', position);
     },
 
@@ -9012,10 +8990,6 @@ AFRAME.registerComponent('gps-camera', {
         var bias = Math.atan(Math.abs((newValue - oldValue) / this.data.smoothCamera)) / (Math.PI / 2);
         return (newValue * bias + oldValue * (1 - bias)) % 360;
     },
-    _deflickerLinear: function (newValue, oldValue, bias) {
-        if (oldValue === undefined || !this.data.smoothCamera) return newValue;
-        return (newValue * bias + oldValue * (1 - bias));
-    },
 
     /**
      * Update user rotation data.
@@ -9036,6 +9010,14 @@ AFRAME.registerComponent('gps-camera', {
 });
 AFRAME.registerComponent('gps-entity-place', {
     _cameraGps: null,
+    _scaleFound: false,
+    _scale: null,
+    _markerDistFromGroundFound: false,
+    _markerDistFromGround: null,
+    _gpsCoords: null,
+    _cameraCurrentLong: null,
+    _cameraCurrentLat: null,
+    _positionXDebug: null,
     schema: {
         latitude: {
             type: 'number',
@@ -9085,6 +9067,15 @@ AFRAME.registerComponent('gps-entity-place', {
             }
         }
 
+        if (!this._markerDistFromGroundFound) {
+            this._markerDistFromGround = 0;
+            var dist = document.querySelector('[distFromGround]');
+            if (dist && dist.getAttribute('distFromGround') !== undefined && dist.getAttribute('distFromGround') !== null) {
+                this._markerDistFromGround = parseFloat(dist.getAttribute('distFromGround'));
+                this._markerDistFromGroundFound = true;
+            }
+        }
+
         if (!this._cameraGps) return;
         if (!this._cameraGps.originCoords) return;
 
@@ -9115,9 +9106,11 @@ AFRAME.registerComponent('gps-entity-place', {
 
             var position = this.el.getAttribute('position');
 
+            var y = this._markerDistFromGround;
             if(this.data.offsetY && this.data.offsetY > 0) {
-                position.y = this.data.offsetY * this._scale;
+                y += this.data.offsetY * this._scale;
             }
+            position.y = y;
 
             // update element's position in 3D world
             position.x = this._deflickerLinear(x, position.x, 0.1);
@@ -9128,6 +9121,7 @@ AFRAME.registerComponent('gps-entity-place', {
             this.el.object3D.rotation.y = rotation + Math.PI;
         }
     },
+
     _deflickerLinear: function (newValue, oldValue, bias) {
       if (oldValue === undefined || !this.data.smoothCamera) return newValue;
       return (newValue * bias + oldValue * (1 - bias));
